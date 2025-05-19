@@ -1,0 +1,148 @@
+- name: Setup development server
+  hosts: servers
+  remote_user: root
+  tasks:
+    - name: Install packages
+      ansible.builtin.dnf:
+        name:
+          - neovim
+          - htop
+          - btop
+          - podman
+          - tree
+          - wget
+          - bash-completion
+          - nmstate
+          - vim
+        state: latest
+      become: yes
+
+    - name: Create nvim config dir
+      ansible.builtin.file:
+        path: /root/.config/nvim
+        state: directory
+        mode: '0755'
+
+    - name: Copy nvim config file
+      copy:
+        src: ./vimrc
+        dest: /root/.config/nvim/init.vim
+        mode: 0644
+
+    - name: Create nvim plug dir
+      ansible.builtin.file:
+        path: /root/.local/share/nvim/site/autoload
+        state: directory
+        mode: '0755'
+
+    - name: Install nvim plug
+      get_url:
+        url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+        dest: /root/.local/share/nvim/site/autoload/plug.vim
+
+    - name: Install vim plug
+      get_url:
+        url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+        dest: /root/.vim/autoload/plug.vim
+
+    - name: Install nvim plugins
+      ansible.builtin.command: nvim +'PlugInstall --sync' +qa
+      
+    - name: Install Operator SDK
+      ansible.builtin.unarchive:
+        remote_src: yes
+        src: https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/latest/operator-sdk-linux-x86_64.tar.gz
+        dest: /usr/local/bin
+        mode: 0755
+
+    - name: Flatten Operator SDK
+      ansible.builtin.copy:
+        remote_src: yes
+        src: /usr/local/bin/x86_64/operator-sdk
+        dest: /usr/local/bin/operator-sdk
+        mode: 0755
+
+    - name: Delete Extracted Operator SDK Dir
+      ansible.builtin.file:
+        path: /usr/local/bin/x86_64
+        state: absent
+
+    - name: Install OCP Installer
+      ansible.builtin.unarchive:
+        remote_src: yes
+        src: https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-install-rhel9-amd64.tar.gz
+        dest: /usr/local/bin
+        mode: 0755
+
+    - name: Install OCP Client
+      ansible.builtin.unarchive:
+        remote_src: yes
+        src: https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux.tar.gz
+        dest: /usr/local/bin
+        mode: 0755
+
+    - name: Remove OCP Client Readme
+      ansible.builtin.file:
+        path: /usr/local/bin/README.md
+        state: absent
+
+    - name: OC Bash Compleation
+      ansible.builtin.shell: oc completion bash > /etc/bash_completion.d/oc_bash_completion
+
+    - name: Create OpenShift dir
+      ansible.builtin.file:
+        path: /opt/openshift
+        state: directory
+        mode: '0755'
+
+    - name: Add SSH Key for OCP
+      ansible.builtin.shell: |
+        echo '-----BEGIN OPENSSH PRIVATE KEY-----
+        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
+        -----END OPENSSH PRIVATE KEY-----' > /opt/openshift/ssh.key
